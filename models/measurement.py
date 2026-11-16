@@ -1,9 +1,20 @@
 from abc import ABC
 from dataclasses import dataclass
+from typing import Iterable
 
 @dataclass
 class Measurement(ABC):
-    pass
+    def __add__(self, other):
+        if not isinstance(other, Measurement):
+            raise ValueError
+
+        return Measurement()
+
+    def __sub__(self, other):
+        if not isinstance(other, Measurement):
+            raise ValueError
+
+        return Measurement()
 
 @dataclass
 class Position(Measurement):

@@ -1,15 +1,16 @@
 from collections import deque
+from typing import Iterable
 
 import numpy as np
 
-from models.grey_model import AbstractGreyModel
+from models.abstract_grey_model import AbstractGreyModel
 from models.measurement import Measurement
 
 class GDF():
     def __init__(
         self,
         base_model: AbstractGreyModel,
-        residual_model: AbstractGreyModel | None,
+        residual_model: AbstractGreyModel,
         window_size: int,
     ) -> None:
         self.base_model     = base_model
@@ -23,18 +24,32 @@ class GDF():
 
     def update(
         self,
-        x: Measurement
+        x
     ) -> None:
         self.history.append(x)
 
     def predict(
         self,
         steps_ahead: int,
-        dt_seconds: float
-    ) -> Measurement:
+    ) -> float | np.ndarray:
         if not self.ready:
             raise ValueError(f"GDF requires {self.window_size} measurements, but only has {len(self.history)}")
         
-        self.base_model.fit( np.stack(self.history) )
+        X = np.stack(self.history)
+        n = X.shape[0]
+        t = n + steps_ahead
 
-        return self.base_model.predict(steps_ahead)
+        self.base_model.fit(X)
+
+        actual = np.cumsum(X, axis = 0)
+        fitted = np.asarray( self.base_model.predict( np.arange(1, n + 1) ) )
+
+        residuals = actual - fitted
+
+        self.residual_model.fit(residuals)
+
+        def corrected_accumulated(t: int) -> float | np.ndarray:
+            return self.base_model.predict(t) + self.residual_model.correct(t)
+
+        return corrected_accumulated(t) - corrected_accumulated(t - 1)
+
