@@ -8,6 +8,7 @@ dependencies = [
     "numpy>=2.0,<3",
     "pillow>=11,<14",
     "scikit-image>=0.25,<0.27",
+    "torch>=2.15.0",
 ]
 
 [dependency-groups]
