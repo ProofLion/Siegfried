@@ -12,12 +12,13 @@ uv run python main.py
 Edit the settings at the top of `main.py` to choose the trajectory, image domain,
 model, history length, horizon, and direct/recursive prediction. The baseline
 repeats the last observed pose. For now, observations come from true labels;
-synthetic and lightbox share these labels. An image estimator is a future TODO.
+synthetic and lightbox share these labels.
 
 - `data_loader.py`: loads ordered pose labels and image paths.
 - `baseline.py`: working example of the model interface.
-- `grey_dynamic_filter.py`, `unscented_kalman_filter.py`, `pose_estimator.py`:
+- `grey_dynamic_filter.py`, `unscented_kalman_filter.py`:
   teammate TODOs.
+- `pose_estimator.py`: CNN that estimates a pose `[x, y, z, qw, qx, qy, qz]` from an image via `estimate_pose(image_path)`. Uses the trained weights in `pose_model.pt`.
 - `image_comparison.py`: working MSE and SSIM image comparison.
 
 Filters use `predict(history, steps_ahead, dt_seconds)`. History has shape
