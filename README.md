@@ -1,39 +1,62 @@
 # Siegfried: SHIRT trajectory prediction
 
-CSCI 4622 Project skeleton. Uses the existing `shirtv1/` dataset folder.
+CSCI 4622 runner for testing the team's CNN and Grey Dynamic Filter (GDF).
+Uses the existing `shirtv1/` dataset and `pose_model.pt` checkpoint.
 
-Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then run:
+## Setup and running
+
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then:
 
 ```powershell
 uv sync --locked
-uv run python main.py
+uv run python main.py --run gdf
 ```
 
-Edit the settings at the top of `main.py` to choose the trajectory, image domain,
-model, history length, horizon, and direct/recursive prediction. The baseline
-repeats the last observed pose. For now, observations come from true labels;
-synthetic and lightbox share these labels.
+Choose a mode with `--run`:
 
-- `data_loader.py`: loads ordered pose labels and image paths.
-- `baseline.py`: working example of the model interface.
-- `grey_dynamic_filter.py`, `unscented_kalman_filter.py`:
-  teammate TODOs.
-- `pose_estimator.py`: CNN that estimates a pose `[x, y, z, qw, qx, qy, qz]` from an image via `estimate_pose(image_path)`. Uses the trained weights in `pose_model.pt`.
-- `image_comparison.py`: working MSE and SSIM image comparison.
+| Mode | What it evaluates |
+| --- | --- |
+| `cnn` | Current-image pose estimates: position (m) and rotation (degrees) |
+| `gdf` | Future positions from true past positions |
+| `combined` | Future positions from CNN-estimated past positions |
+| `compare` | All three, with separate pose-estimation and forecast tables |
 
-Filters use `predict(history, steps_ahead, dt_seconds)`. History has shape
-`(N, 7)`; return one pose `[x, y, z, qw, qx, qy, qz]` (meters, unit quaternion).
-SHIRT's timestep is 5 seconds. Direct mode predicts only the final pose;
-recursive mode feeds one-step predictions back into the history.
-
-Compare images or run the small tests:
+For a small customized run, or to see all options:
 
 ```powershell
-uv run python image_comparison.py shirtv1/roe1/synthetic/images/img000001.jpg shirtv1/roe1/synthetic/images/img000002.jpg
-uv run pytest
+uv run python main.py --run compare --trajectory roe2 --domain lightbox --samples 5 --mode direct
+uv run python main.py --help
 ```
 
-Images are compared in grayscale on [0, 1], without resizing. Sizes must match
-and be at least 7 by 7 pixels. Lower MSE is better (identical = 0); higher SSIM
-is better (identical = 1). These measure appearance, not pose accuracy.
-Keep `uv.lock` in Git so teammates use the same dependency versions.
+Defaults: ROE1 synthetic, 10 observed frames, horizons 1/5/10, recursive mode,
+20 windows, and stride 10. Horizons start after the last observation; SHIRT
+frames are 5 seconds apart. Direct mode jumps to a target; recursive mode feeds
+one-step predictions back into the history. Stride spaces windows while each
+history keeps consecutive frames. `--start-index` is the first history's start.
+
+## Results
+
+Each run creates a folder under `outputs/` containing:
+
+- `summary.csv`: mean/median position error, mean rotation error, and sample counts.
+- `predictions.csv`: individual predictions, true values, errors, and failures.
+- `run.json`: experiment settings.
+- PNG figures: CNN errors, forecast errors by horizon, and an example x/y/z forecast.
+
+Forecasts are compared with holding the last observed position fixed, using
+common successful windows. Failed cases remain in the CSV; `N/A` means unavailable.
+The checkpoint's training split is unrecorded, so CNN results are development
+diagnostics. GDF orientation is unfinished, and numerical failures are recorded.
+
+## Files and tests
+
+- `main.py`: commands and orchestration.
+- `evaluation.py`: metrics, forecast windows, and CNN estimate caching.
+- `model_adapters.py`: wrappers around the existing CNN and scalar x/y/z GDFs.
+- `results.py`: tables and exports.
+- `pose_estimator.py`, `grey_dynamic_filter.py`, `models/`: teammates' model code.
+
+Poses use `[x, y, z, qw, qx, qy, qz]` (meters, scalar-first quaternion).
+Run `uv run pytest` for integration tests using small fixtures, without training.
+`image_comparison.py` separately compares image appearance with MSE/SSIM.
+Keep `uv.lock` in Git; leave virtual environments and generated outputs out.
